@@ -1,0 +1,36 @@
+[project]
+name = "sandbox-dbt"
+version = "0.1.0"
+description = "A hands-on dbt learning sandbox: PostgreSQL + dbt-core + JupyterLab, fully Dockerized, uv-managed"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # The dbt engine and the Postgres adapter. Since the 2024 adapter
+    # decoupling they version independently -- do not try to match minors.
+    "dbt-core>=1.10,<1.11",
+    "dbt-postgres>=1.9,<2.0",
+    # Notebook stack
+    "jupyterlab>=4.2,<5",
+    "jupysql>=0.10",
+    # Warehouse access from Python (dbt-postgres is psycopg2-based; we use the
+    # same driver everywhere: SQLAlchemy URLs are postgresql+psycopg2://)
+    "sqlalchemy>=2.0,<3",
+    "psycopg2-binary>=2.9.9",
+    # Analysis + DAG visualization in notebooks
+    "pandas>=2.2",
+    "matplotlib>=3.9",
+    "networkx>=3.3",
+    # Synthetic data generation
+    "faker>=30",
+    "python-dotenv>=1.0",
+]
+
+[dependency-groups]
+dev = ["ruff>=0.6"]
+
+[tool.uv]
+# This repo is not an installable package -- uv should only manage dependencies.
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

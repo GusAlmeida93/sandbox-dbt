@@ -1,0 +1,13 @@
+# Keep the build context tiny: the image only COPYs pyproject.toml, uv.lock
+# and .python-version. Everything else reaches the container via the bind mount.
+.git
+.venv
+.env
+jaffle_shop/target
+jaffle_shop/target_base
+jaffle_shop/dbt_packages
+jaffle_shop/logs
+notebooks/executed
+**/.ipynb_checkpoints
+**/__pycache__
+.DS_Store

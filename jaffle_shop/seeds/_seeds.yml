@@ -1,0 +1,27 @@
+# Seeds: small, static, version-controlled CSVs that dbt loads with
+# `dbt seed`. RIGHT use: lookup/mapping tables that analysts own (this file).
+# WRONG use: actual source data -- that is an EL tool's job (or, here, the
+# generator script's). Seeds are code: they get tests, docs, and code review.
+# See docs/05.
+version: 2
+
+seeds:
+  - name: payment_methods
+    description: Payment methods the shop accepts, with processing fees.
+    config:
+      # CSV columns are all inferred as text unless you say otherwise:
+      column_types:
+        fee_percent: numeric(5,2)
+    columns:
+      - name: payment_method
+        data_tests:
+          - unique
+          - not_null
+
+  - name: country_codes
+    description: ISO-3166 alpha-2 country codes for the markets we ship to.
+    columns:
+      - name: country_code
+        data_tests:
+          - unique
+          - not_null

@@ -1,0 +1,40 @@
+# ============================================================================
+# Snapshots: SCD Type 2 history for mutable sources. Each `dbt snapshot` run
+# compares the source's current state to the snapshot table and:
+#   * closes out changed rows (sets dbt_valid_to)
+#   * inserts the new version (dbt_valid_from = now, dbt_valid_to = null)
+# Defined in YAML since dbt 1.9 (the old {% snapshot %} SQL blocks still work).
+# Best practice: snapshot SOURCES, as early as possible -- history you don't
+# capture now is history you lose forever. See docs/10.
+# ============================================================================
+version: 2
+
+snapshots:
+  - name: snap_customers
+    relation: source('shop_backend', 'raw_customers')
+    description: >
+      Address history for customers. The source overwrites addresses in
+      place; this snapshot turns those overwrites into SCD-2 rows.
+    config:
+      unique_key: id
+      # TIMESTAMP strategy: trust the source's updated_at column to tell us
+      # when a row changed. Cheapest, but requires a reliable updated_at.
+      strategy: timestamp
+      updated_at: updated_at
+      # Optional extras worth knowing (defaults shown commented):
+      #   dbt_valid_to_current: "to_date('9999-12-31')"  # open rows get a
+      #     sentinel date instead of null (simplifies BETWEEN queries)
+      #   hard_deletes: ignore | invalidate | new_record  # what to do when a
+      #     row disappears from the source (dbt 1.9+)
+
+  - name: snap_order_status
+    relation: source('shop_backend', 'raw_orders')
+    description: >
+      Full status history for orders: one snapshot row per (order, status)
+      version.
+    config:
+      unique_key: id
+      # CHECK strategy: compare the listed columns value-by-value. Use when
+      # there is no trustworthy updated_at. Costs more per run.
+      strategy: check
+      check_cols: [status]

@@ -1,0 +1,22 @@
+# Exposures: declared DOWNSTREAM consumers of your models (dashboards,
+# notebooks, ML jobs, reverse-ETL syncs). They show up in the DAG and docs,
+# answer "what breaks if I change this model?", and can be selected:
+#   dbt run -s +exposure:revenue_notebook     # build everything it needs
+# See docs/08.
+version: 2
+
+exposures:
+  - name: revenue_notebook
+    label: Revenue exploration notebook
+    type: notebook
+    maturity: medium
+    url: http://localhost:8888/lab/tree/notebooks/08_artifacts_and_dag.ipynb
+    description: >
+      JupyterLab notebook that charts daily revenue and run timings from the
+      warehouse and dbt artifacts.
+    depends_on:
+      - ref('fct_orders')
+      - ref('agg_daily_revenue')
+    owner:
+      name: Gustavo Almeida
+      email: gusalmeida93@gmail.com

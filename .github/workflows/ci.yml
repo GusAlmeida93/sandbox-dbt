@@ -1,0 +1,95 @@
+# ============================================================================
+# CI for the dbt project -- and teaching material for docs/16.
+#
+# Shape: the classic "full build against a throwaway warehouse".
+#   1. spin up Postgres as a SERVICE CONTAINER (fresh, empty, dies with the job)
+#   2. install the locked Python env with uv
+#   3. load deterministic synthetic data (same generator as local)
+#   4. dbt deps + dbt build  -- models, tests, snapshots, unit tests, all of it
+#
+# Because profiles.yml is env_var()-driven (docs/02), CI needs zero special
+# dbt config: we just point DBT_HOST at the service container.
+#
+# The next maturity level -- slim CI (build only state:modified+, --defer to
+# a stored prod manifest) -- needs an artifact store for manifests and a prod
+# environment to defer to; see docs/16 for the full pattern.
+# ============================================================================
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  dbt-build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dbt
+          POSTGRES_PASSWORD: dbt
+          POSTGRES_DB: jaffle_shop
+        ports:
+          - 5432:5432
+        # The job must not start until the DB accepts connections.
+        options: >-
+          --health-cmd "pg_isready -U dbt -d jaffle_shop"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Same variables the local setup uses -- the service container's port
+      # is published on the runner's localhost.
+      DBT_HOST: localhost
+      DBT_PORT: "5432"
+      DBT_USER: dbt
+      DBT_PASSWORD: dbt
+      DBT_DBNAME: jaffle_shop
+      DBT_PROFILES_DIR: ${{ github.workspace }}/jaffle_shop
+      DBT_SEND_ANONYMOUS_USAGE_STATS: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Installs uv and (via .python-version) the pinned Python 3.12.
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # --frozen: exactly what uv.lock says, or fail loudly.
+      - name: Install Python environment
+        run: uv sync --frozen
+
+      - name: Load synthetic raw data (days 1-2)
+        run: uv run python scripts/generate_data.py --days 2
+
+      - name: Install dbt packages
+        run: uv run dbt deps
+        working-directory: jaffle_shop
+
+      - name: dbt build (models + data tests + unit tests + snapshots)
+        run: uv run dbt build
+        working-directory: jaffle_shop
+
+      # Prove incremental logic + snapshots against mutated data, same as
+      # `make verify` does locally: advance one business day and rebuild.
+      - name: Advance one day and rebuild incrementally
+        run: |
+          uv run python scripts/generate_data.py --day 3
+          cd jaffle_shop && uv run dbt build
+
+      # Artifacts are the raw material for slim CI (docs/16). Uploading them
+      # here shows where a stored manifest WOULD come from.
+      - name: Upload dbt artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-artifacts
+          path: |
+            jaffle_shop/target/manifest.json
+            jaffle_shop/target/run_results.json

@@ -1,0 +1,21 @@
+# YAML selectors: named, reusable, documentable node selections.
+# Use with:  dbt build --selector daily_marts
+# See docs/06 for the full node-selection syntax.
+selectors:
+  - name: daily_marts
+    description: >
+      Everything needed to refresh the marts layer: all models under
+      models/marts plus their upstream parents (staging, intermediate, seeds).
+    definition:
+      method: path
+      value: models/marts
+      parents: true
+
+  - name: smoke_test
+    description: The cheapest end-to-end sanity check -- one chain through the DAG.
+    definition:
+      union:
+        - method: fqn
+          value: stg_orders
+        - method: fqn
+          value: fct_orders

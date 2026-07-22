@@ -1,0 +1,42 @@
+# ============================================================================
+# profiles.yml -- HOW to connect to the warehouse (credentials, host, schema).
+#
+# This file is committed ON PURPOSE, which is unusual: everything here is
+# env_var()-driven with toy-credential defaults, and the warehouse is a
+# throwaway local container. In real projects profiles.yml holds secrets,
+# lives in ~/.dbt/, and is NEVER committed.
+#
+# Dual-mode contract:
+#   * inside Docker, compose injects DBT_HOST=postgres / DBT_PORT=5432
+#   * on the host, the env_var() defaults below (localhost:5432) apply,
+#     optionally overridden by .env via the Makefile
+#
+# env_var() always returns a string; `| as_number` converts where dbt expects
+# an integer (a profiles.yml-only Jinja filter).
+# ============================================================================
+
+jaffle_shop:
+  target: dev            # default target; override with --target prod
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('DBT_HOST', 'localhost') }}"
+      port: "{{ env_var('DBT_PORT', '5432') | as_number }}"
+      user: "{{ env_var('DBT_USER', 'dbt') }}"
+      password: "{{ env_var('DBT_PASSWORD', 'dbt') }}"
+      dbname: "{{ env_var('DBT_DBNAME', 'jaffle_shop') }}"
+      # Base schema. Models with a custom +schema land in dev_<custom>
+      # (see macros/generate_schema_name.sql).
+      schema: dev
+      threads: 4
+    prod:
+      # Same warehouse in this sandbox -- the point is to make --target,
+      # generate_schema_name and target.name behavior observable.
+      type: postgres
+      host: "{{ env_var('DBT_HOST', 'localhost') }}"
+      port: "{{ env_var('DBT_PORT', '5432') | as_number }}"
+      user: "{{ env_var('DBT_USER', 'dbt') }}"
+      password: "{{ env_var('DBT_PASSWORD', 'dbt') }}"
+      dbname: "{{ env_var('DBT_DBNAME', 'jaffle_shop') }}"
+      schema: analytics
+      threads: 8

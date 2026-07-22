@@ -1,0 +1,57 @@
+# ============================================================================
+# Sources: declarations of raw tables that OTHER tools loaded into the
+# warehouse. dbt never creates these -- it only reads them via
+# {{ source('<source_name>', '<table_name>') }}, which
+#   * documents where your data actually comes from,
+#   * draws the source->model edges in the DAG,
+#   * enables `dbt source freshness`.
+# See docs/05.
+# ============================================================================
+version: 2
+
+sources:
+  - name: shop_backend
+    description: >
+      Operational tables from the jaffle shop's backend, replicated into the
+      warehouse by scripts/generate_data.py (playing the role of an EL tool
+      such as Fivetran or Airbyte). Each table carries EL metadata columns:
+      _synced_at (when the row last synced) and _batch_day (sandbox load day).
+    schema: raw
+    # Freshness defaults for every table in this source; individual tables
+    # can override or opt out below.
+    loaded_at_field: _synced_at
+    freshness:
+      warn_after: {count: 24, period: hour}
+    tables:
+      - name: raw_customers
+        description: One row per customer account, mutable (addresses change).
+      - name: raw_products
+        description: The product catalog. Effectively static.
+        # Static tables should not page you about staleness: opt out.
+        freshness: null
+      - name: raw_orders
+        description: >
+          One row per order. MUTABLE: the source system updates `status` and
+          `updated_at` in place as orders move through their lifecycle --
+          which is exactly why we snapshot it (snapshots/) and why fct_orders
+          must pick up changed rows, not just new ones (docs/11).
+        freshness:
+          warn_after: {count: 24, period: hour}
+          error_after: {count: 72, period: hour}
+      - name: raw_order_items
+        description: One row per product within an order.
+      - name: raw_payments
+        description: One row per payment; exactly one payment per order here.
+
+  - name: web_analytics
+    description: >
+      Clickstream events from the shop's website, landed in the same raw
+      schema by a separate pipeline. High volume, append-only, sometimes
+      anonymous (customer_id is null for logged-out visitors).
+    schema: raw
+    loaded_at_field: _synced_at
+    tables:
+      - name: raw_events
+        freshness:
+          warn_after: {count: 24, period: hour}
+          error_after: {count: 72, period: hour}

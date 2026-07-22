@@ -1,0 +1,32 @@
+# Macros get documented too -- these descriptions show up in the docs site.
+version: 2
+
+macros:
+  - name: cents_to_dollars
+    description: Convert an integer-cents column to numeric dollars.
+    arguments:
+      - name: column_name
+        type: string
+        description: Column (or expression) holding integer cents.
+      - name: precision
+        type: integer
+        description: Decimal places in the result (default 2).
+
+  - name: generate_schema_name
+    description: >
+      Override of dbt's built-in schema naming: dev gets `dev_<custom>`
+      namespacing, prod gets clean `<custom>` names.
+
+  - name: limit_in_dev
+    description: Emit a LIMIT clause in dev when var('limit_dev_rows') is true.
+
+  - name: drop_old_relations
+    description: >
+      run-operation that drops relations no longer managed by the project
+      (dry-run by default).
+
+  - name: create_audit_log
+    description: on-run-start hook -- creates the audit schema + run log table.
+
+  - name: log_run_results
+    description: on-run-end hook -- inserts one audit row per dbt invocation.

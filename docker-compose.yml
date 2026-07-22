@@ -1,0 +1,71 @@
+# ============================================================================
+# sandbox-dbt service topology
+#
+#   postgres   the warehouse (PostgreSQL 17)
+#   workbench  JupyterLab + dbt + uv-managed Python env (built from ./Dockerfile)
+#   adminer    lightweight web UI to browse the database
+#
+# The repo is bind-mounted into the workbench at /workspace, so edits on the
+# host are live inside the container. The Python environment itself is baked
+# into the image at /opt/venv (outside the mount -- see Dockerfile).
+#
+# All published ports bind to 127.0.0.1 so nothing listens on your LAN.
+# ============================================================================
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dbt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dbt}
+      POSTGRES_DB: ${POSTGRES_DB:-jaffle_shop}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Named volume (not a bind mount): fast on macOS and no FS-permission noise.
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dbt} -d ${POSTGRES_DB:-jaffle_shop}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  workbench:
+    build: .
+    ports:
+      - "127.0.0.1:${JUPYTER_PORT:-8888}:8888"
+      - "127.0.0.1:${DBT_DOCS_PORT:-8081}:8081"   # pre-published for `dbt docs serve`
+    volumes:
+      - .:/workspace
+    environment:
+      # Inside the compose network the warehouse is ALWAYS postgres:5432,
+      # regardless of what the host-side .env says. These two are the
+      # network-internal truth; the rest pass through from .env.
+      DBT_HOST: postgres
+      DBT_PORT: "5432"
+      DBT_USER: ${DBT_USER:-dbt}
+      DBT_PASSWORD: ${DBT_PASSWORD:-dbt}
+      DBT_DBNAME: ${DBT_DBNAME:-jaffle_shop}
+      DBT_PROFILES_DIR: /workspace/jaffle_shop
+      DBT_SEND_ANONYMOUS_USAGE_STATS: "false"
+      # Jupyter Server reads this env var natively -- no CLI flag needed.
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN:-dbt}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  adminer:
+    image: adminer:5
+    ports:
+      - "127.0.0.1:${ADMINER_PORT:-8080}:8080"
+    environment:
+      # Prefills the server field on the login page. Log in with:
+      # System=PostgreSQL, Server=postgres, and the credentials from .env.
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

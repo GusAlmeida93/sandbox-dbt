@@ -1,0 +1,6 @@
+payment_method,display_name,fee_percent
+credit_card,Credit card,2.9
+debit_card,Debit card,1.5
+pix,Pix instant payment,0.4
+bank_transfer,Bank transfer,0.8
+gift_card,Gift card,0.0

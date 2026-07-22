@@ -1,0 +1,18 @@
+# dbt packages: reusable macro/model libraries installed by `dbt deps` into
+# dbt_packages/ (gitignored). The RESOLVED versions are locked in
+# package-lock.yml, which IS committed -- like uv.lock, but for dbt packages.
+# Browse packages at https://hub.getdbt.com. See docs/12.
+packages:
+  # The standard library of analytics engineering: surrogate keys, pivots,
+  # generic tests, date spines ...
+  - package: dbt-labs/dbt_utils
+    version: [">=1.3.0", "<2.0.0"]
+
+  # Great Expectations-style assertion tests.
+  - package: metaplane/dbt_expectations
+    version: [">=0.10.0", "<1.0.0"]
+
+  # Generates boilerplate YAML/SQL for you (try:
+  # dbt run-operation generate_model_yaml --args '{model_names: [stg_orders]}')
+  - package: dbt-labs/codegen
+    version: [">=0.13.0", "<1.0.0"]

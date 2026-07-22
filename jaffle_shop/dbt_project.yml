@@ -1,0 +1,74 @@
+# ============================================================================
+# dbt_project.yml -- the heart of a dbt project.
+# Every dbt project has exactly one. It names the project, points dbt at the
+# right folders, and sets project-wide configuration. See docs/03.
+# ============================================================================
+
+name: 'jaffle_shop'
+version: '1.0.0'
+
+# Refuse to run on dbt versions this project was not written for.
+require-dbt-version: ">=1.10.0,<2.0.0"
+
+# Which profile (connection config) to use -- see profiles.yml next to this file.
+profile: 'jaffle_shop'
+
+# Where dbt looks for each resource type (these are the defaults, spelled out
+# for learning purposes).
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+# What `dbt clean` deletes.
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+# Project variables -- reachable anywhere in the project as {{ var('...') }}.
+vars:
+  # Day 1 of business time in the synthetic data. Keep in sync with BASE_DATE
+  # in scripts/generate_data.py. Feeds `begin` on the microbatch model.
+  training_start_date: "2026-07-01"
+  # When true, limit_in_dev() caps big staging models in the dev target.
+  limit_dev_rows: false
+
+# Global flags (dbt 1.8+ moved these from CLI/env-only into the project file).
+flags:
+  send_anonymous_usage_stats: false
+
+# Hooks that run at the very start / end of every dbt invocation.
+# These power a small audit log -- see macros/audit_hooks.sql and docs/14.
+on-run-start:
+  - "{{ create_audit_log() }}"
+on-run-end:
+  - "{{ log_run_results(results) }}"
+
+# ----------------------------------------------------------------------------
+# Layer-wide model configuration. Precedence (lowest to highest):
+#   dbt_project.yml  <  config in a .yml properties file  <  {{ config() }} in the model
+# `+schema` is a CUSTOM schema: the final name is computed by our
+# generate_schema_name macro (dev -> dev_staging, prod -> staging). docs/15.
+# ----------------------------------------------------------------------------
+models:
+  jaffle_shop:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts
+
+seeds:
+  jaffle_shop:
+    +schema: seeds
+
+snapshots:
+  jaffle_shop:
+    +schema: snapshots
